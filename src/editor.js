@@ -3,7 +3,8 @@
 // what WordLogic saves. Protocol: README.md, "Protocol".
 //
 // The same page serves shared links (`/s/{token}`, `data-share-token`): the file is then the
-// link's own WebDAV address, and the person is a guest under the name they gave Nextcloud.
+// link's own WebDAV address (a link to a folder: the document's address in it,
+// `data-share-path`), and the person is a guest under the name they gave Nextcloud.
 
 import { getCurrentUser, getGuestNickname, getRequestToken } from '@nextcloud/auth'
 import { generateRemoteUrl, generateUrl, getRootUrl } from '@nextcloud/router'
@@ -18,6 +19,8 @@ const fileId = Number(root?.dataset.fileId ?? 0)
 /** A shared link's token: the page is the link's. */
 const token = root?.dataset.shareToken ?? ''
 const viaLink = token !== ''
+/** Through a link to a folder: the document's path in it (`/Reports/Report.docx`). */
+const sharePath = root?.dataset.sharePath ?? ''
 /** Whether the link lets people edit (signed-in users: Nextcloud decides on each save). */
 const linkCanEdit = root?.dataset.canEdit === '1'
 const user = getCurrentUser()
@@ -58,7 +61,8 @@ function isOpenedFile(name) {
 /** WebDAV URL of a path in the user's files; through a link, the shared file's. */
 function davUrl(p) {
 	if (viaLink) {
-		return `${getRootUrl()}/public.php/dav/files/${encodeURIComponent(token)}`
+		const inFolder = sharePath.split('/').filter(Boolean).map(encodeURIComponent).join('/')
+		return `${getRootUrl()}/public.php/dav/files/${encodeURIComponent(token)}${inFolder ? `/${inFolder}` : ''}`
 	}
 	const encoded = p.split('/').filter(Boolean).map(encodeURIComponent).join('/')
 	return `${generateRemoteUrl(`dav/files/${encodeURIComponent(user.uid)}`)}/${encoded}`
@@ -345,7 +349,7 @@ async function share(frame) {
 		headers,
 		notify,
 		endpoint: viaLink ? generateUrl(`/apps/wordcraft/s/${encodeURIComponent(token)}/collab`) : generateUrl('/apps/wordcraft/collab'),
-		joinParams: viaLink ? { displayName: personName } : {},
+		joinParams: viaLink ? { displayName: personName, path: sharePath } : {},
 		person: personName,
 		onMembers(members) {
 			others = Math.max(0, members.length - 1)

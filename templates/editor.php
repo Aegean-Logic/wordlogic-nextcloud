@@ -6,6 +6,7 @@
 	data-file-id="<?php p((string)$_['fileId']); ?>"
 	<?php if (isset($_['shareToken'])) { ?>
 	data-share-token="<?php p($_['shareToken']); ?>"
+	data-share-path="<?php p($_['sharePath'] ?? ''); ?>"
 	data-file-name="<?php p($_['fileName']); ?>"
 	data-can-edit="<?php p($_['canEdit'] ? '1' : '0'); ?>"
 	<?php } ?>

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\WordCraft\AppInfo;
 
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
+use OCA\Files_Sharing\Event\BeforeTemplateRenderedEvent;
 use OCA\WordCraft\Listener\LoadFilesScripts;
+use OCA\WordCraft\Listener\LoadPublicFolderScripts;
 use OCA\WordCraft\Share\EditorPageProvider;
 use OCP\App\IAppManager;
 use OCP\AppFramework\App;
@@ -25,6 +27,8 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(LoadAdditionalScriptsEvent::class, LoadFilesScripts::class);
 		// A shared link to a document opens in WordLogic.
 		$context->registerPublicShareTemplateProvider(EditorPageProvider::class);
+		// A link to a folder: its documents open in WordLogic too.
+		$context->registerEventListener(BeforeTemplateRenderedEvent::class, LoadPublicFolderScripts::class);
 	}
 
 	public function boot(IBootContext $context): void {

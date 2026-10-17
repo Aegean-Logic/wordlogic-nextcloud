@@ -56,6 +56,17 @@ class EditorPageProvider implements IPublicShareTemplateProvider {
 
 	public function renderPage(IShare $share, string $token, string $path): TemplateResponse {
 		$file = $share->getNode();
+		if (!$file instanceof File) {
+			throw new NotFoundException();
+		}
+		return $this->page($share, $token, $file, '');
+	}
+
+	/**
+	 * WordLogic for `$file` through the link `$token`: the shared file (`$path` empty), or the
+	 * document at `$path` in the shared folder (`Controller\PublicEditorController`).
+	 */
+	public function page(IShare $share, string $token, File $file, string $path): TemplateResponse {
 		$canEdit = ($share->getPermissions() & Constants::PERMISSION_UPDATE) !== 0 && $file->isUpdateable();
 		Util::addScript(Application::APP_ID, 'wordcraft-editor');
 		Util::addStyle(Application::APP_ID, 'editor');
@@ -63,19 +74,21 @@ class EditorPageProvider implements IPublicShareTemplateProvider {
 			'path' => '',
 			'fileId' => $file->getId(),
 			'shareToken' => $token,
+			'sharePath' => $path,
 			'fileName' => $file->getName(),
 			'canEdit' => $canEdit,
 			'editorUrl' => $this->urlGenerator->linkTo(Application::APP_ID, 'editor/index.html')
 				. '?v=' . rawurlencode($this->appManager->getAppVersion(Application::APP_ID)),
 			'editorMissing' => !Application::editorInstalled($this->appManager),
 		]);
-		$response->setHeaderTitle($share->getLabel() !== '' ? $share->getLabel() : $file->getName());
+		$response->setHeaderTitle($path === '' && $share->getLabel() !== '' ? $share->getLabel() : $file->getName());
 		$owner = $this->publicOwnerName($share);
 		if ($owner !== '') {
 			$response->setHeaderDetails('shared by ' . $owner);
 		}
 		if ($share->canDownload() && !$share->getHideDownload()) {
-			$download = $this->urlGenerator->getAbsoluteURL('/public.php/dav/files/' . rawurlencode($token));
+			$segments = array_map('rawurlencode', array_values(array_filter(explode('/', $path), fn ($s) => $s !== '')));
+			$download = $this->urlGenerator->getAbsoluteURL('/public.php/dav/files/' . rawurlencode($token) . ($segments === [] ? '' : '/' . implode('/', $segments)));
 			$response->setHeaderActions([new SimpleMenuAction('download', 'Download', 'icon-download', $download, 0, (string)$file->getSize())]);
 		}
 		$response->setFooterVisible(false);

@@ -11,19 +11,15 @@ use OCP\AppFramework\Http\Attribute\FrontpageRoute;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\PublicShareController;
-use OCP\Constants;
 use OCP\Files\File;
-use OCP\Files\NotFoundException;
 use OCP\IRequest;
 use OCP\ISession;
 use OCP\Security\ISecureRandom;
-use OCP\Share\Exceptions\ShareNotFound;
 use OCP\Share\IManager as ShareManager;
-use OCP\Share\IShare;
 
 /**
- * Co-editing for people who open a shared link (`/s/{token}`): the same sequencer as signed-in
- * users, reached through the link. Nextcloud's public share checks run first (the link exists,
+ * Co-editing for people who open a shared link (`/s/{token}`), to a document or to a folder
+ * with documents: the same sequencer as signed-in users, reached through the link. Nextcloud's public share checks run first (the link exists,
  * link sharing is on, and a password-protected link was unlocked in this browser session).
  *
  * Link visitors have no account: joining hands out a random key, and each later call proves
@@ -31,11 +27,10 @@ use OCP\Share\IShare;
  */
 class PublicCollabController extends PublicShareController {
 	use CollabResponses;
+	use LinkShare;
 
 	/** A visitor's name as shown to the others. */
 	private const MAX_NAME = 64;
-
-	private ?IShare $share = null;
 
 	public function __construct(
 		IRequest $request,
@@ -47,33 +42,13 @@ class PublicCollabController extends PublicShareController {
 		parent::__construct(Application::APP_ID, $request, $session);
 	}
 
-	protected function getPasswordHash(): ?string {
-		return $this->share?->getPassword();
-	}
-
-	public function isValidToken(): bool {
-		try {
-			$share = $this->shareManager->getShareByToken($this->getToken());
-		} catch (ShareNotFound) {
-			return false;
-		}
-		if (!in_array($share->getShareType(), [IShare::TYPE_LINK, IShare::TYPE_EMAIL], true)) {
-			return false;
-		}
-		$this->share = $share;
-		return true;
-	}
-
-	protected function isPasswordProtected(): bool {
-		return $this->share?->getPassword() !== null;
-	}
-
 	#[PublicPage]
 	#[FrontpageRoute(verb: 'POST', url: '/s/{token}/collab/join')]
-	public function join(string $etag, string $displayName = ''): Response {
-		return $this->guard(function () use ($etag, $displayName) {
-			$file = $this->file();
-			$canEdit = $this->canEdit($file);
+	public function join(string $etag, string $displayName = '', string $path = ''): Response {
+		return $this->guard(function () use ($etag, $displayName, $path) {
+			// `$path`: the document within a shared folder (none for a link to a file).
+			$file = $this->sharedFile($path);
+			$canEdit = $this->linkCanEdit($file);
 			$key = $this->random->generate(32, ISecureRandom::CHAR_ALPHANUMERIC);
 			$result = $this->collab->join($file->getId(), $etag, self::visitor($key), self::name($displayName), $canEdit);
 			if (!isset($result['retry'])) {
@@ -89,7 +64,7 @@ class PublicCollabController extends PublicShareController {
 	public function push(int $sessionId, int $client, string $key, int $clientSeq, int $base, string $op): Response {
 		return $this->guard(function () use ($sessionId, $client, $key, $clientSeq, $base, $op) {
 			$file = $this->sessionFile($sessionId);
-			if (!$this->canEdit($file)) {
+			if (!$this->linkCanEdit($file)) {
 				return self::viewOnly();
 			}
 			return ['seq' => $this->collab->push($sessionId, $client, self::visitor($key), $clientSeq, $base, $op)];
@@ -110,7 +85,7 @@ class PublicCollabController extends PublicShareController {
 	public function checkpoint(int $sessionId, int $client, string $key, int $seq, string $etag, string $state = ''): Response {
 		return $this->guard(function () use ($sessionId, $client, $key, $seq, $etag, $state) {
 			$file = $this->sessionFile($sessionId);
-			if (!$this->canEdit($file)) {
+			if (!$this->linkCanEdit($file)) {
 				return self::viewOnly();
 			}
 			self::requireSaved($file, $etag);
@@ -138,30 +113,10 @@ class PublicCollabController extends PublicShareController {
 		});
 	}
 
-	/** The shared file. Links to folders aren't opened here. */
-	private function file(): File {
-		try {
-			$node = $this->share?->getNode();
-		} catch (NotFoundException) {
-			$node = null;
-		}
-		if (!$node instanceof File || ($this->share->getPermissions() & Constants::PERMISSION_READ) === 0) {
-			throw new NotAllowed('The file is not available.');
-		}
-		return $node;
-	}
-
+	/** The session's file, within the link. */
 	private function sessionFile(int $sessionId): File {
-		$file = $this->file();
-		if ($this->collab->fileOf($sessionId) !== $file->getId()) {
-			throw new NotMemberException();
-		}
-		return $file;
-	}
-
-	/** Whether the link allows editing (and the file still can be). */
-	private function canEdit(File $file): bool {
-		return ($this->share->getPermissions() & Constants::PERMISSION_UPDATE) !== 0 && $file->isUpdateable();
+		$fileId = $this->collab->fileOf($sessionId) ?? throw new NotMemberException();
+		return $this->sharedFileById($fileId);
 	}
 
 	/** The member id for a visitor's key: the key itself is never stored. */

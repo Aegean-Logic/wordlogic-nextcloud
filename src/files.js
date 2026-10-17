@@ -2,6 +2,7 @@
 
 import { DefaultType, Permission, registerFileAction } from '@nextcloud/files'
 import { generateUrl, getRootUrl } from '@nextcloud/router'
+import { getSharingToken, isPublicShare } from '@nextcloud/sharing/public'
 
 /** Word and OpenDocument documents, and RTF: WordLogic saves them back as they are. */
 const DOCUMENTS = ['docx', 'docm', 'dotx', 'dotm', 'odt', 'rtf']
@@ -29,7 +30,9 @@ function opens(node, kinds = [DOCUMENTS, IMPORTS, TEXT]) {
 }
 
 function open(node) {
-	const url = new URL(generateUrl('/apps/wordcraft/edit'), location.href)
+	// On a link to a folder, through the link: the path is within the shared folder.
+	const token = isPublicShare() ? getSharingToken() : null
+	const url = new URL(generateUrl(token ? `/apps/wordcraft/s/${encodeURIComponent(token)}/edit` : '/apps/wordcraft/edit'), location.href)
 	url.searchParams.set('path', node.path)
 	window.location.assign(url.toString())
 }
@@ -66,7 +69,7 @@ registerFileAction({
 	id: 'wordcraft-open-desktop',
 	displayName: () => 'Open in WordLogic desktop app',
 	iconSvgInline: () => ICON,
-	enabled: ({ nodes }) => nodes.length === 1 && opens(nodes[0]) && !document.getElementById('isPublic')?.value,
+	enabled: ({ nodes }) => nodes.length === 1 && opens(nodes[0]) && !isPublicShare(),
 	async exec({ nodes }) {
 		const server = `${location.origin}${getRootUrl()}`
 		location.href = `wordlogic://open?server=${encodeURIComponent(server)}&path=${encodeURIComponent(nodes[0].path)}`

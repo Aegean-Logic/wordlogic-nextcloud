@@ -62,6 +62,11 @@ same way.
   `/apps/wordcraft/s/{token}/collab/*` (`PublicCollabController`), state snapshots included.
   There, membership is a random key handed out on join, never stored (only its hash). Guests'
   Share button copies the link. Links to text and Markdown files keep Nextcloud's own page.
+- **Links to folders:** a folder link's page (Nextcloud's Files, public) gets the "Open in
+  WordLogic" action too, as clicking a document's default action. It opens
+  `/apps/wordcraft/s/{token}/edit?path=…` (`PublicEditorController`): WordLogic for that file,
+  read and saved through the link's WebDAV address, co-edited like a file link. Paths out of the
+  shared folder find nothing.
 - **Open in Desktop App:** in the editor's title bar (`desktop=1` on the editor's URL), and
   "Open in WordLogic desktop app" in a document's Files menu. Both open the file in WordLogic on
   the computer with a `wordlogic://open?server=…&path=…` link, as GridLogic's do with
@@ -71,8 +76,20 @@ same way.
   scheme's registration, Nextcloud sign-in and co-editing) isn't built yet; until it is, the link
   does nothing.
 
-Not yet: links to folders (their documents open in Nextcloud's own viewer), file locking
-(`files_lock`), Save As into another folder.
+Not yet: file locking (`files_lock`), Save As into another folder.
+
+**Waiting on the WordLogic web build:** `editor/` is empty until the build with the `wordcraft:`
+host bridge exists (`editor/README.md`); until then the editor page says the editor isn't
+installed. The app icons in `img/` are placeholders until the WordLogic icon in
+`wordcraft/assets/app-icon` is drawn.
+
+## Beside GridLogic
+
+Both apps install side by side: different app ids (`wordcraft`, `gridcraft`), namespaces,
+routes (`/apps/wordcraft/…`), tables (`wordcraft_*`) and index names (`wc_*`), app data folders,
+script names and Files actions (`wordcraft-open*`). The file types don't overlap (GridLogic:
+xlsx, xlsm, ods, xls, xlsb, csv, tsv), so each is the default for its own, and each one's share
+page provider answers only for its own documents.
 
 ## Protocol
 
@@ -114,14 +131,14 @@ The sequencer (`/apps/wordcraft/collab/*`, JSON, with Nextcloud's CSRF token or
 | `POST leave {sessionId, client}` | |
 
 Through a shared link the same routes are `/apps/wordcraft/s/{token}/collab/*`: join also takes
-`displayName` and returns `key`, which every later call (the snapshot's included) sends back.
+`displayName` (and, in a shared folder, the document's `path` there) and returns `key`, which every later call (the snapshot's included) sends back.
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `appinfo/info.xml` | App manifest |
-| `lib/` | `Application` (Files hook, share page provider), `EditorController` (`/edit` page and its CSP), `Share/EditorPageProvider` (shared links), `CollabController`, `PublicCollabController` + `Service/CollabService` (the co-editing sequencer), `Service/SnapshotStore` (checkpoint snapshots), `BackgroundJob/CleanUpSessions`, `Migration/` (the tables), listener |
+| `lib/` | `Application` (Files hook, share page provider, folder-link hook), `EditorController` (`/edit` page and its CSP), `Share/EditorPageProvider` (shared links), `PublicEditorController` (documents in shared folders), `LinkShare` (what's behind a link), `CollabController`, `PublicCollabController` + `Service/CollabService` (the co-editing sequencer), `Service/SnapshotStore` (checkpoint snapshots), `BackgroundJob/CleanUpSessions`, `Migration/` (the tables), listeners |
 | `templates/editor.php`, `css/editor.css` | The editor page |
 | `src/editor.js` | The host page: WebDAV load/save and the WordLogic postMessage bridge |
 | `src/collab.js` | Co-editing: join, op push and polling, checkpoint saves |
