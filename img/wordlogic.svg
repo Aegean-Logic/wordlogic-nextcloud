@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- WordLogic app icon, PLACEHOLDER: a page with an ink title line, light text lines and a sea
+       trace ending in the aqua node, on a marble tile, drawn to sit beside GridLogic's "Sheet
+       trace" (Aegean Logic palette: ink #0A2A3B, sea #12718C, aqua #2FC6C0, marble #F4F2EC).
+       Original geometry for this repository. To be replaced by the WordLogic icon from
+       wordcraft/assets/app-icon once it is drawn. -->
+  <rect width="512" height="512" rx="112" fill="#F4F2EC"/>
+  <!-- the page, with a folded corner -->
+  <path d="M164 88 H316 L384 156 V396 A28 28 0 0 1 356 424 H164 A28 28 0 0 1 136 396 V116 A28 28 0 0 1 164 88 Z" fill="#FFFFFF" stroke="#0A2A3B" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M316 88 V140 A16 16 0 0 0 332 156 H384" fill="none" stroke="#0A2A3B" stroke-width="16" stroke-linejoin="round"/>
+  <!-- a title and lines of text -->
+  <path d="M180 196 H284" fill="none" stroke="#0A2A3B" stroke-width="22" stroke-linecap="round"/>
+  <path d="M180 248 H340 M180 292 H340" fill="none" stroke="#CED4D8" stroke-width="14" stroke-linecap="round"/>
+  <!-- the trace and its node -->
+  <polyline points="180,366 232,336 280,354 334,318" fill="none" stroke="#12718C" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="334" cy="318" r="30" fill="#2FC6C0" stroke="#FFFFFF" stroke-width="12"/>
+</svg>

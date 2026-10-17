@@ -1,0 +1,5 @@
+node_modules/
+# Build outputs: js/ from `npm run build`, editor/ from the WordLogic web build (see editor/README.md).
+js/
+editor/*
+!editor/README.md
