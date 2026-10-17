@@ -80,8 +80,7 @@ Not yet: file locking (`files_lock`), Save As into another folder.
 
 **Waiting on the WordLogic web build:** `editor/` is empty until the build with the `wordcraft:`
 host bridge exists (`editor/README.md`); until then the editor page says the editor isn't
-installed. The app icons in `img/` are placeholders until the WordLogic icon in
-`wordcraft/assets/app-icon` is drawn.
+installed.
 
 ## Beside GridLogic
 
@@ -146,7 +145,7 @@ Through a shared link the same routes are `/apps/wordcraft/s/{token}/collab/*`: 
 | `src/files.js` | The Files actions |
 | `js/` | Bundles built from `src/` (`npm run build`) |
 | `editor/` | The WordLogic web build, vendored by `scripts/vendor-editor.sh` (`editor/README.md`) |
-| `img/` | App icons (placeholders until the WordLogic icon is drawn) |
+| `img/` | WordLogic's icon, "W trace": `wordlogic.svg` (48 px and up), `wordlogic-small.svg` (32 px and below), and `app.svg` (the small one, Nextcloud's app icon) |
 
 ## Build
 

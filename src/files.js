@@ -14,8 +14,8 @@ const IMPORTS = ['doc', 'dot']
  */
 const TEXT = ['txt', 'md', 'markdown']
 
-// Original icon: a page with a folded corner and three lines of text.
-const ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M5 2h9l5 5v15H5V2zm2 2v16h10V8h-4V4H7zm2 7h6v1.5H9V11zm0 3h6v1.5H9V14zm0 3h4v1.5H9V17z"/></svg>'
+// WordLogic's "W trace" as a monochrome glyph: a page with a header band and the W.
+const ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path fill="currentColor" d="M5 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2H5z"/><polyline points="8,10.5 10,17 12,12.5 14,17 16,10.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 
 function extension(node) {
 	const name = node.basename ?? ''
