@@ -12,8 +12,11 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\App\IAppManager;
+use OCP\Files\IRootFolder;
+use OCP\Files\NotFoundException;
 use OCP\IRequest;
 use OCP\IURLGenerator;
+use OCP\IUserSession;
 use OCP\Util;
 
 class EditorController extends Controller {
@@ -21,6 +24,8 @@ class EditorController extends Controller {
 		IRequest $request,
 		private IURLGenerator $urlGenerator,
 		private IAppManager $appManager,
+		private IRootFolder $rootFolder,
+		private IUserSession $userSession,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -37,6 +42,8 @@ class EditorController extends Controller {
 		Util::addStyle(Application::APP_ID, 'editor');
 		$response = new TemplateResponse(Application::APP_ID, 'editor', [
 			'path' => $path,
+			// For co-editing: sessions are per file, and a file keeps its id when renamed or moved.
+			'fileId' => $this->fileId($path),
 			// The version in the URL makes browsers fetch the new page after an upgrade: a cached
 			// old one names wasm and script files the upgrade replaced, and wouldn't start.
 			'editorUrl' => $this->urlGenerator->linkTo(Application::APP_ID, 'editor/index.html')
@@ -48,5 +55,18 @@ class EditorController extends Controller {
 		$csp->addAllowedFrameDomain("'self'");
 		$response->setContentSecurityPolicy($csp);
 		return $response;
+	}
+
+	/** The id of the signed-in user's file at `$path`, or 0. */
+	private function fileId(string $path): int {
+		$user = $this->userSession->getUser();
+		if ($user === null || $path === '') {
+			return 0;
+		}
+		try {
+			return $this->rootFolder->getUserFolder($user->getUID())->get($path)->getId() ?? 0;
+		} catch (NotFoundException) {
+			return 0;
+		}
 	}
 }

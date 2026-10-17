@@ -3,11 +3,14 @@
 // what WordLogic saves. Protocol: wordcraft/packaging/web/README.md.
 
 import { getCurrentUser, getRequestToken } from '@nextcloud/auth'
-import { generateRemoteUrl } from '@nextcloud/router'
+import { generateRemoteUrl, generateUrl } from '@nextcloud/router'
+
+import { Collab, colorFor } from './collab.js'
 
 const root = document.getElementById('wordcraft-app')
 const status = document.getElementById('wordcraft-status')
 const path = root?.dataset.path ?? ''
+const fileId = Number(root?.dataset.fileId ?? 0)
 const user = getCurrentUser()
 
 /** The folder of `path` and its file name. */
@@ -30,6 +33,17 @@ function extensionOf(name) {
 	return i < 0 ? '' : name.slice(i + 1).toLowerCase()
 }
 
+/**
+ * Whether the opened file is co-edited: everyone's edits are saved back into it, so only a format
+ * WordLogic writes (an imported .doc opens for one person and is saved as .docx).
+ */
+const coEdits = SAVES_IN_PLACE.includes(extensionOf(fileName))
+
+/** Whether WordLogic is saving the opened file itself (not a copy in another format or a PDF). */
+function isOpenedFile(name) {
+	return String(name ?? '').split(/[\\/]/).pop().toLowerCase() === fileName.toLowerCase()
+}
+
 /** WebDAV URL of a path in the user's files. */
 function davUrl(p) {
 	const encoded = p.split('/').filter(Boolean).map(encodeURIComponent).join('/')
@@ -48,8 +62,29 @@ let dirty = false
 /** The document's current name: an imported .doc becomes .docx once saved. */
 let shownName = fileName
 
+/** The co-editing session, once joined. */
+let collab = null
+/** Who else is in it. */
+let others = 0
+
 function showTitle() {
-	document.title = `${dirty ? '• ' : ''}${shownName} - WordLogic`
+	const unsaved = collab ? collab.unsaved : dirty
+	const company = others > 0 ? ` (${others + 1} editing)` : ''
+	document.title = `${unsaved ? '• ' : ''}${shownName}${company} - WordLogic`
+}
+
+/** A message over the top of the editor, not covering it (co-editing). */
+function notify(text, error = false) {
+	let bar = document.getElementById('wordcraft-notice')
+	if (!bar) {
+		bar = document.createElement('div')
+		bar.id = 'wordcraft-notice'
+		root.prepend(bar)
+	}
+	bar.textContent = text
+	bar.classList.toggle('error', error)
+	clearTimeout(bar.timer)
+	bar.timer = setTimeout(() => bar.remove(), error ? 15000 : 5000)
 }
 
 function headers(extra = {}) {
@@ -150,7 +185,11 @@ function start() {
 				console.warn('WordLogic: this build does not confirm saves; a failed save will not be reported')
 			}
 			try {
-				await load(frame)
+				if (message.collab && fileId > 0 && coEdits) {
+					await share(frame)
+				} else {
+					await load(frame)
+				}
 				status.hidden = true
 			} catch (e) {
 				show(`Couldn't open ${fileName}: ${e.message}`, true)
@@ -159,13 +198,34 @@ function start() {
 		case 'wordcraft:save': {
 			let reply
 			try {
-				reply = await store(message)
+				// Shared: Save writes the document as everyone has it.
+				if (collab && isOpenedFile(message.name)) {
+					await collab.checkpoint()
+					reply = { type: 'wordcraft:saved', id: message.id }
+					showTitle()
+				} else {
+					reply = await store(message)
+				}
 			} catch (e) {
-				reply = { type: 'wordcraft:saveFailed', id: message.id, error: `Couldn't reach Nextcloud: ${e.message}` }
+				reply = { type: 'wordcraft:saveFailed', id: message.id, error: e.message }
 			}
 			frame.contentWindow.postMessage(reply, location.origin)
 			break
 		}
+		case 'wordcraft:collab:op':
+			collab?.queue(message.json)
+			showTitle()
+			break
+		case 'wordcraft:collab:checkpointData':
+			collab?.received(message)
+			break
+		case 'wordcraft:collab:selection':
+			collab?.setSelection(message.json)
+			break
+		case 'wordcraft:collab:error':
+			console.warn('WordLogic co-editing:', message.error)
+			collab?.rejoin()
+			break
 		case 'wordcraft:dirty':
 			dirty = Boolean(message.dirty)
 			showTitle()
@@ -177,13 +237,76 @@ function start() {
 	})
 
 	addEventListener('beforeunload', (event) => {
-		if (dirty) {
+		if (collab ? collab.unsaved : dirty) {
 			event.preventDefault()
 		}
 	})
 
 	frame.src = editorUrl.toString()
 	root.appendChild(frame)
+}
+
+/** Who's editing, above the editor: each person in the colour they're drawn in in the document. */
+function showPeople(members) {
+	let strip = document.getElementById('wordcraft-people')
+	if (!strip) {
+		strip = document.createElement('div')
+		strip.id = 'wordcraft-people'
+		strip.setAttribute('aria-label', "Who's editing")
+		root.prepend(strip)
+	}
+	const me = collab?.client
+	const sorted = [...members].sort((a, b) => (a.client === me ? -1 : b.client === me ? 1 : a.client - b.client))
+	const key = JSON.stringify(sorted.map((m) => [m.client, m.displayName]))
+	if (strip.dataset.key === key) {
+		return
+	}
+	strip.dataset.key = key
+	strip.replaceChildren(
+		Object.assign(document.createElement('span'), { className: 'label', textContent: sorted.length > 1 ? 'Editing now:' : 'Only you are editing' }),
+	)
+	if (sorted.length < 2) {
+		return
+	}
+	for (const m of sorted) {
+		const name = m.displayName || m.userId
+		const chip = document.createElement('span')
+		chip.className = 'person'
+		chip.style.setProperty('--person', colorFor(m.client))
+		chip.title = m.client === me ? `${name} (you)` : name
+		const initials = Object.assign(document.createElement('span'), { className: 'initials', textContent: initialsOf(name) })
+		chip.append(initials, document.createTextNode(m.client === me ? `${name} (you)` : name))
+		strip.append(chip)
+	}
+}
+
+function initialsOf(name) {
+	const parts = String(name).trim().split(/\s+/).filter(Boolean)
+	return ((parts[0]?.[0] ?? '?') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
+}
+
+/** Opens the file in a co-editing session: everyone with it open edits the same document. */
+async function share(frame) {
+	collab = new Collab({
+		frame,
+		fileId,
+		fileUrl: davUrl(path),
+		headers,
+		notify,
+		endpoint: generateUrl('/apps/wordcraft/collab'),
+		person: user.displayName || user.uid,
+		onMembers(members) {
+			others = Math.max(0, members.length - 1)
+			showPeople(members)
+			showTitle()
+		},
+	})
+	const { bytes, seq, state, entries } = await collab.join()
+	// The file names the document and its format; a state snapshot, when the session keeps one,
+	// is the shared document itself (collab:start).
+	frame.contentWindow.postMessage({ type: 'wordcraft:open', name: fileName, bytes }, location.origin, [bytes])
+	collab.start(seq, entries, state)
+	showTitle()
 }
 
 start()

@@ -4,15 +4,52 @@
 
 #wordcraft-app {
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	width: 100%;
 	height: 100%;
 }
 
 #wordcraft-app iframe {
 	display: block;
+	flex: 1;
+	min-height: 0;
 	width: 100%;
-	height: 100%;
 	border: 0;
+}
+
+/* Who's editing (co-editing). */
+#wordcraft-people {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 12px;
+	padding: 4px 12px;
+	font-size: 13px;
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-main-background);
+	color: var(--color-text-maxcontrast);
+}
+
+#wordcraft-people .person {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--color-main-text);
+}
+
+#wordcraft-people .initials {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 22px;
+	height: 22px;
+	padding: 0 4px;
+	border-radius: 11px;
+	background: var(--person);
+	color: #fff;
+	font-size: 11px;
+	font-weight: bold;
 }
 
 #wordcraft-status {
@@ -33,4 +70,23 @@
 
 #wordcraft-status[hidden] {
 	display: none;
+}
+
+#wordcraft-notice {
+	position: absolute;
+	top: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+	max-width: calc(100% - 32px);
+	padding: 6px 14px;
+	border-radius: var(--border-radius-large, 10px);
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	box-shadow: 0 2px 8px var(--color-box-shadow);
+	pointer-events: none;
+}
+
+#wordcraft-notice.error {
+	color: var(--color-error-text, var(--color-error));
 }
