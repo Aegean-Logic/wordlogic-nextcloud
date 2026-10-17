@@ -45,7 +45,15 @@ same way.
   can edit save the shared document, and the server records a checkpoint only from them, and only
   for the save the file actually holds (its ETag).
 
-Not yet: sharing, shared links, file locking (`files_lock`), Save As into another folder.
+- **Sharing:** WordLogic's Share button opens a Share dialog like Word's: add people, groups or
+  email addresses (Nextcloud's sharee search) with Can edit or Can view, add a message, and Send.
+  Copy link makes or updates the file's public link, with link settings for permission, password
+  and expiry. The people-with-access list changes or removes shares. The page carries the
+  dialog's requests out with Nextcloud's sharing API (`src/share.js`), as GridLogic's does.
+  Email invitations need outgoing mail set up in Nextcloud (Administration settings › Basic
+  settings › Email server).
+
+Not yet: shared links, file locking (`files_lock`), Save As into another folder.
 
 ## Protocol
 
@@ -70,6 +78,8 @@ object whose `type` starts with `wordcraft:`. The shapes are GridLogic's
 | `wordcraft:collab:presence` | from the page | `json`: the others, `[{...their position as their WordLogic sent it, client, name, color}]` |
 | `wordcraft:collab:stop` | from the page | ends sharing |
 | `wordcraft:collab:error` | to the page | `error`: rejoin |
+| `wordcraft:cloud` | to the page | `id`, `op` (`share.info`, `share.search`, `share.list`, `share.add`, `share.update`, `share.remove`, `share.link`), `params` (JSON text) |
+| `wordcraft:cloud:reply` | from the page | `id`, `ok`, then `json` (the answer as JSON text) or `error` |
 
 The sequencer (`/apps/wordcraft/collab/*`, JSON, with Nextcloud's CSRF token or
 `OCS-APIRequest: true`):
@@ -92,6 +102,7 @@ The sequencer (`/apps/wordcraft/collab/*`, JSON, with Nextcloud's CSRF token or
 | `templates/editor.php`, `css/editor.css` | The editor page |
 | `src/editor.js` | The host page: WebDAV load/save and the WordLogic postMessage bridge |
 | `src/collab.js` | Co-editing: join, op push and polling, checkpoint saves |
+| `src/share.js` | The Share dialog's operations, through Nextcloud's sharing API |
 | `src/files.js` | The Files actions |
 | `js/` | Bundles built from `src/` (`npm run build`) |
 | `editor/` | The WordLogic web build, vendored by `scripts/vendor-editor.sh` (`editor/README.md`) |

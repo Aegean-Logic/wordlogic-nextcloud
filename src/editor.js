@@ -6,6 +6,7 @@ import { getCurrentUser, getRequestToken } from '@nextcloud/auth'
 import { generateRemoteUrl, generateUrl } from '@nextcloud/router'
 
 import { Collab, colorFor } from './collab.js'
+import { sharing } from './share.js'
 
 const root = document.getElementById('wordcraft-app')
 const status = document.getElementById('wordcraft-status')
@@ -64,6 +65,8 @@ let shownName = fileName
 
 /** The co-editing session, once joined. */
 let collab = null
+/** Carries out the Share dialog's requests (made on first use). */
+let shareHandler = null
 /** Who else is in it. */
 let others = 0
 
@@ -219,6 +222,13 @@ function start() {
 		case 'wordcraft:collab:checkpointData':
 			collab?.received(message)
 			break
+		case 'wordcraft:cloud': {
+			// The Share dialog asks; Nextcloud answers.
+			shareHandler ??= sharing({ path, name: shownName, davUrl: davUrl(path) })
+			const reply = await shareHandler(message)
+			frame.contentWindow.postMessage(reply, location.origin)
+			break
+		}
 		case 'wordcraft:collab:selection':
 			collab?.setSelection(message.json)
 			break
