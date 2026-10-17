@@ -2,6 +2,11 @@
 	overflow: hidden;
 }
 
+/* A shared link's page: no footer, so none of the room kept for it. */
+#body-public #content.app-wordcraft {
+	padding-bottom: 0;
+}
+
 #wordcraft-app {
 	position: relative;
 	display: flex;

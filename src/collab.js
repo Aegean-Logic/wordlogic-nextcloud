@@ -1,8 +1,8 @@
 // Co-editing for the editor page. WordLogic (in the iframe) does all the merging; this module
-// carries ops between it and the app's sequencer (`/apps/wordcraft/collab/*`) and saves the
-// shared document back to the file now and then (a checkpoint), with WordLogic's snapshot of it,
-// so the file keeps up and people joining later start from exactly the shared document.
-// Protocol: README.md, "Protocol".
+// carries ops between it and the app's sequencer (`/apps/wordcraft/collab/*`, or through a
+// shared link `/apps/wordcraft/s/{token}/collab/*`) and saves the shared document back to the
+// file now and then (a checkpoint), with WordLogic's snapshot of it, so the file keeps up and
+// people joining later start from exactly the shared document. Protocol: README.md, "Protocol".
 
 /** Save the shared document after this many log entries… */
 const CHECKPOINT_OPS = 20
@@ -31,9 +31,12 @@ export class Collab {
 	 * @param {(members: object[]) => void} o.onMembers who's in the session
 	 * @param {string} o.endpoint the sequencer's URL (`…/collab`)
 	 * @param {string} o.person how the others see this person
+	 * @param {object} o.joinParams more for joining (a link visitor's name)
 	 */
-	constructor({ frame, fileId, fileUrl, headers, notify, onMembers, endpoint, person }) {
-		Object.assign(this, { frame, fileId, fileUrl, headers, notify, onMembers, endpoint, person })
+	constructor({ frame, fileId, fileUrl, headers, notify, onMembers, endpoint, person, joinParams = {} }) {
+		Object.assign(this, { frame, fileId, fileUrl, headers, notify, onMembers, endpoint, person, joinParams })
+		/** A link visitor's proof of membership, from joining (sent with every call). */
+		this.key = ''
 		this.sessionId = 0
 		this.client = 0
 		this.lastSeq = 0
@@ -66,14 +69,14 @@ export class Collab {
 			}
 			const etag = bare(response.headers.get('ETag') ?? '')
 			const bytes = await response.arrayBuffer()
-			const joined = await this.call('POST', 'join', { fileId: this.fileId, etag })
+			const joined = await this.call('POST', 'join', { fileId: this.fileId, etag, ...this.joinParams })
 			if (joined.retry) {
 				// Saved for the session since this copy was fetched: fetch it again, giving a
 				// save in progress time to finish.
 				await sleep(400 * 2 ** attempt)
 				continue
 			}
-			Object.assign(this, { sessionId: joined.sessionId, client: joined.client, canEdit: joined.canEdit !== false })
+			Object.assign(this, { sessionId: joined.sessionId, client: joined.client, canEdit: joined.canEdit !== false, key: joined.key ?? '' })
 			let state = ''
 			if (joined.hasState) {
 				try {
@@ -83,6 +86,7 @@ export class Collab {
 					// the newer file.
 					await this.call('POST', 'leave', { sessionId: this.sessionId, client: this.client }).catch(() => {})
 					this.sessionId = 0
+					this.key = ''
 					await sleep(400 * 2 ** attempt)
 					continue
 				}
@@ -99,7 +103,7 @@ export class Collab {
 
 	/** The state snapshot of the checkpoint at `seq` (text, as WordLogic handed it over). */
 	async state(seq) {
-		const params = { sessionId: this.sessionId, client: this.client, seq }
+		const params = this.withKey({ sessionId: this.sessionId, client: this.client, seq })
 		const response = await fetch(`${this.endpoint}/state?${new URLSearchParams(params)}`, {
 			credentials: 'same-origin',
 			headers: this.headers({ Accept: 'application/json' }),
@@ -369,7 +373,7 @@ export class Collab {
 			keepalive: true,
 			credentials: 'same-origin',
 			headers: this.headers({ 'Content-Type': 'application/json' }),
-			body: JSON.stringify({ sessionId: this.sessionId, client: this.client }),
+			body: JSON.stringify(this.withKey({ sessionId: this.sessionId, client: this.client })),
 		}).catch(() => {})
 	}
 
@@ -377,8 +381,14 @@ export class Collab {
 		this.frame.contentWindow?.postMessage(message, location.origin)
 	}
 
+	/** A call's parameters, with a link visitor's key. */
+	withKey(params) {
+		return this.key ? { ...params, key: this.key } : params
+	}
+
 	/** A call to the sequencer; throws an Error with `status` on failure. */
 	async call(method, endpoint, params) {
+		params = this.withKey(params)
 		let url = `${this.endpoint}/${endpoint}`
 		const init = { method, credentials: 'same-origin', headers: this.headers({ Accept: 'application/json' }) }
 		if (method === 'GET') {

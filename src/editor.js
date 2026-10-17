@@ -1,18 +1,28 @@
 // The editor page: WordLogic runs in an iframe on this origin (`?host=parent&ack=1`). This page
 // reads the file over WebDAV with the user's session, hands it to WordLogic, and writes back
-// what WordLogic saves. Protocol: wordcraft/packaging/web/README.md.
+// what WordLogic saves. Protocol: README.md, "Protocol".
+//
+// The same page serves shared links (`/s/{token}`, `data-share-token`): the file is then the
+// link's own WebDAV address, and the person is a guest under the name they gave Nextcloud.
 
-import { getCurrentUser, getRequestToken } from '@nextcloud/auth'
-import { generateRemoteUrl, generateUrl } from '@nextcloud/router'
+import { getCurrentUser, getGuestNickname, getRequestToken } from '@nextcloud/auth'
+import { generateRemoteUrl, generateUrl, getRootUrl } from '@nextcloud/router'
 
 import { Collab, colorFor } from './collab.js'
-import { sharing } from './share.js'
+import { guestSharing, sharing } from './share.js'
 
 const root = document.getElementById('wordcraft-app')
 const status = document.getElementById('wordcraft-status')
 const path = root?.dataset.path ?? ''
 const fileId = Number(root?.dataset.fileId ?? 0)
+/** A shared link's token: the page is the link's. */
+const token = root?.dataset.shareToken ?? ''
+const viaLink = token !== ''
+/** Whether the link lets people edit (signed-in users: Nextcloud decides on each save). */
+const linkCanEdit = root?.dataset.canEdit === '1'
 const user = getCurrentUser()
+/** How the others see this person. */
+const personName = user?.displayName || user?.uid || getGuestNickname() || 'Guest'
 
 /** The folder of `path` and its file name. */
 function split(p) {
@@ -20,7 +30,7 @@ function split(p) {
 	return i < 0 ? ['', p] : [p.slice(0, i), p.slice(i + 1)]
 }
 
-const [folder, fileName] = split(path)
+const [folder, fileName] = viaLink ? ['', root?.dataset.fileName ?? ''] : split(path)
 
 /**
  * Formats WordLogic's engine writes, so a document in one of them is saved back as it is. Others
@@ -45,8 +55,11 @@ function isOpenedFile(name) {
 	return String(name ?? '').split(/[\\/]/).pop().toLowerCase() === fileName.toLowerCase()
 }
 
-/** WebDAV URL of a path in the user's files. */
+/** WebDAV URL of a path in the user's files; through a link, the shared file's. */
 function davUrl(p) {
+	if (viaLink) {
+		return `${getRootUrl()}/public.php/dav/files/${encodeURIComponent(token)}`
+	}
 	const encoded = p.split('/').filter(Boolean).map(encodeURIComponent).join('/')
 	return `${generateRemoteUrl(`dav/files/${encodeURIComponent(user.uid)}`)}/${encoded}`
 }
@@ -91,7 +104,8 @@ function notify(text, error = false) {
 }
 
 function headers(extra = {}) {
-	return { requesttoken: getRequestToken() ?? '', ...extra }
+	// X-Requested-With: a link's WebDAV answers a missing password with 401, not a login prompt.
+	return { requesttoken: getRequestToken() ?? '', 'X-Requested-With': 'XMLHttpRequest', ...extra }
 }
 
 async function load(frame) {
@@ -113,6 +127,12 @@ async function store(message) {
 	const name = String(message.name ?? '').split(/[\\/]/).pop()
 	if (!name) {
 		return { type: 'wordcraft:saveFailed', id: message.id, error: 'The file has no name.' }
+	}
+	if (viaLink && !linkCanEdit) {
+		return { type: 'wordcraft:saveFailed', id: message.id, error: 'This link lets you view the document, not change it. Download a copy to keep your changes.' }
+	}
+	if (viaLink && name !== fileName) {
+		return { type: 'wordcraft:saveFailed', id: message.id, error: `This link can only save ${fileName}. Download a copy to keep it under another name.` }
 	}
 	const target = folder ? `${folder}/${name}` : name
 	const known = etags.get(target)
@@ -150,11 +170,11 @@ function start() {
 	if (!root || !status) {
 		return
 	}
-	if (!user) {
+	if (!user && !viaLink) {
 		show('Sign in to Nextcloud to open files in WordLogic.', true)
 		return
 	}
-	if (!path) {
+	if (!path && !viaLink) {
 		show('No file to open. Open a document from Files with "Open in WordLogic".', true)
 		return
 	}
@@ -164,7 +184,7 @@ function start() {
 	}
 	const editorUrl = new URL(root.dataset.editorUrl, location.href)
 	// Added to the page's own query (`v`, the app version), which keeps browser caches current.
-	for (const [key, value] of Object.entries({ host: 'parent', ack: '1', author: user.displayName ?? user.uid })) {
+	for (const [key, value] of Object.entries({ host: 'parent', ack: '1', author: personName })) {
 		editorUrl.searchParams.set(key, value)
 	}
 
@@ -223,8 +243,10 @@ function start() {
 			collab?.received(message)
 			break
 		case 'wordcraft:cloud': {
-			// The Share dialog asks; Nextcloud answers.
-			shareHandler ??= sharing({ path, name: shownName, davUrl: davUrl(path) })
+			// The Share dialog asks; Nextcloud answers. Guests on a link can only pass the link on.
+			shareHandler ??= viaLink
+				? guestSharing({ name: shownName, link: `${location.origin}${location.pathname}` })
+				: sharing({ path, name: shownName, davUrl: davUrl(path) })
 			const reply = await shareHandler(message)
 			frame.contentWindow.postMessage(reply, location.origin)
 			break
@@ -303,8 +325,9 @@ async function share(frame) {
 		fileUrl: davUrl(path),
 		headers,
 		notify,
-		endpoint: generateUrl('/apps/wordcraft/collab'),
-		person: user.displayName || user.uid,
+		endpoint: viaLink ? generateUrl(`/apps/wordcraft/s/${encodeURIComponent(token)}/collab`) : generateUrl('/apps/wordcraft/collab'),
+		joinParams: viaLink ? { displayName: personName } : {},
+		person: personName,
 		onMembers(members) {
 			others = Math.max(0, members.length - 1)
 			showPeople(members)

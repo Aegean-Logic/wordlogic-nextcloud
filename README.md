@@ -53,7 +53,18 @@ same way.
   Email invitations need outgoing mail set up in Nextcloud (Administration settings › Basic
   settings › Email server).
 
-Not yet: shared links, file locking (`files_lock`), Save As into another folder.
+- **Shared links:** a link to a document (`/s/{token}`, link or email share) opens in
+  WordLogic, as a OneDrive link opens in Word for the web (`lib/Share/EditorPageProvider.php`).
+  An edit link lets people edit together with everyone who has the file open, signed-in users
+  included. They show as guests under the name they gave Nextcloud. A view-only link follows
+  live but can't change anything. Nextcloud checks the link first, including a password, and
+  the page reads and writes the file through the link's WebDAV address. Co-editing goes through
+  `/apps/wordcraft/s/{token}/collab/*` (`PublicCollabController`), state snapshots included.
+  There, membership is a random key handed out on join, never stored (only its hash). Guests'
+  Share button copies the link. Links to text and Markdown files keep Nextcloud's own page.
+
+Not yet: links to folders (their documents open in Nextcloud's own viewer), file locking
+(`files_lock`), Save As into another folder.
 
 ## Protocol
 
@@ -93,12 +104,15 @@ The sequencer (`/apps/wordcraft/collab/*`, JSON, with Nextcloud's CSRF token or
 | `POST checkpoint {sessionId, client, seq, etag, state}` | Records the save and keeps its snapshot |
 | `POST leave {sessionId, client}` | |
 
+Through a shared link the same routes are `/apps/wordcraft/s/{token}/collab/*`: join also takes
+`displayName` and returns `key`, which every later call (the snapshot's included) sends back.
+
 ## Layout
 
 | Path | What |
 |---|---|
 | `appinfo/info.xml` | App manifest |
-| `lib/` | `Application` (Files hook), `EditorController` (`/edit` page and its CSP), `CollabController` + `Service/CollabService` (the co-editing sequencer), `Service/SnapshotStore` (checkpoint snapshots), `BackgroundJob/CleanUpSessions`, `Migration/` (the tables), listener |
+| `lib/` | `Application` (Files hook, share page provider), `EditorController` (`/edit` page and its CSP), `Share/EditorPageProvider` (shared links), `CollabController`, `PublicCollabController` + `Service/CollabService` (the co-editing sequencer), `Service/SnapshotStore` (checkpoint snapshots), `BackgroundJob/CleanUpSessions`, `Migration/` (the tables), listener |
 | `templates/editor.php`, `css/editor.css` | The editor page |
 | `src/editor.js` | The host page: WebDAV load/save and the WordLogic postMessage bridge |
 | `src/collab.js` | Co-editing: join, op push and polling, checkpoint saves |
