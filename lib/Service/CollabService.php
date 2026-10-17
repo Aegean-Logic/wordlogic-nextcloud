@@ -23,6 +23,10 @@ use OCP\IDBConnection;
 class CollabService {
 	/** A member not heard from for this long no longer counts as in the session. */
 	public const ACTIVE_SECONDS = 60;
+	/** Members seen this recently are shown to the others (caret, "Editing now"); one gone without
+	 * leaving (a closed laptop, a crashed browser) disappears after this, while it stays a member for
+	 * {@see ACTIVE_SECONDS} (a hidden tab the browser throttles still counts for checkpoints). */
+	public const PRESENCE_SECONDS = 15;
 	/** The largest op accepted (JSON text). */
 	public const MAX_OP_BYTES = 16 * 1024 * 1024;
 	/** The most log entries per sync. */
@@ -377,10 +381,10 @@ class CollabService {
 		return $out;
 	}
 
-	/** @return list<array{client: int, userId: string, displayName: string, selection: string, canEdit: bool}> */
+	/** @return list<array{client: int, userId: string, displayName: string, selection: string, canEdit: bool, recent: bool}> */
 	private function activeMembers(int $sessionId, int $now): array {
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('client', 'user_id', 'display_name', 'selection', 'can_edit')->from('wordcraft_members')
+		$qb->select('client', 'user_id', 'display_name', 'selection', 'can_edit', 'last_seen')->from('wordcraft_members')
 			->where($qb->expr()->eq('session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->gte('last_seen', $qb->createNamedParameter($now - self::ACTIVE_SECONDS, IQueryBuilder::PARAM_INT)))
 			->orderBy('client', 'ASC');
@@ -393,6 +397,7 @@ class CollabService {
 				'displayName' => (string)$r['display_name'],
 				'selection' => (string)($r['selection'] ?? ''),
 				'canEdit' => (int)($r['can_edit'] ?? 1) === 1,
+				'recent' => (int)$r['last_seen'] >= $now - self::PRESENCE_SECONDS,
 			];
 		}
 		$rows->closeCursor();

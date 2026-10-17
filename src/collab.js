@@ -95,7 +95,7 @@ export class Collab {
 			this.checkpointEtag = etag
 			this.lastSeq = joined.seq
 			this.members = joined.members ?? []
-			this.onMembers(this.members)
+			this.onMembers(this.shownMembers())
 			return { bytes, seq: joined.seq, state, entries: joined.entries ?? [] }
 		}
 		throw new Error('the file keeps changing; try again in a moment')
@@ -206,7 +206,7 @@ export class Collab {
 					this.checkpointEtag = r.checkpointEtag
 				}
 				this.members = r.members ?? []
-				this.onMembers(this.members)
+				this.onMembers(this.shownMembers())
 				this.showOthers()
 				this.maybeCheckpoint()
 				if ((r.entries ?? []).length) {
@@ -231,10 +231,16 @@ export class Collab {
 	 * Where the others are, for WordLogic to draw in the document: each member's position as their
 	 * WordLogic sent it (caret and selection; this page doesn't read it), with their name and colour.
 	 */
+	/** The members to show: those seen lately (one gone without leaving drops out in seconds;
+	 * the full list still decides who writes checkpoints). */
+	shownMembers() {
+		return this.members.filter((m) => m.recent !== false || m.client === this.client)
+	}
+
 	showOthers() {
 		const people = []
 		for (const m of this.members) {
-			if (m.client === this.client || !m.selection) {
+			if (m.client === this.client || !m.selection || m.recent === false) {
 				continue
 			}
 			try {
