@@ -62,6 +62,14 @@ same way.
   `/apps/wordcraft/s/{token}/collab/*` (`PublicCollabController`), state snapshots included.
   There, membership is a random key handed out on join, never stored (only its hash). Guests'
   Share button copies the link. Links to text and Markdown files keep Nextcloud's own page.
+- **Open in Desktop App:** in the editor's title bar (`desktop=1` on the editor's URL), and
+  "Open in WordLogic desktop app" in a document's Files menu. Both open the file in WordLogic on
+  the computer with a `wordlogic://open?server=…&path=…` link, as GridLogic's do with
+  `gridlogic://`. The desktop app is to sign in to that Nextcloud (Login Flow) if it needs to and
+  join the same co-editing session through `/apps/wordcraft/collab/*` with its app password
+  (state snapshots included), as GridLogic's desktop app does. WordLogic's desktop side (the
+  scheme's registration, Nextcloud sign-in and co-editing) isn't built yet; until it is, the link
+  does nothing.
 
 Not yet: links to folders (their documents open in Nextcloud's own viewer), file locking
 (`files_lock`), Save As into another folder.
@@ -91,6 +99,7 @@ object whose `type` starts with `wordcraft:`. The shapes are GridLogic's
 | `wordcraft:collab:error` | to the page | `error`: rejoin |
 | `wordcraft:cloud` | to the page | `id`, `op` (`share.info`, `share.search`, `share.list`, `share.add`, `share.update`, `share.remove`, `share.link`), `params` (JSON text) |
 | `wordcraft:cloud:reply` | from the page | `id`, `ok`, then `json` (the answer as JSON text) or `error` |
+| `wordcraft:openDesktop` | to the page | Open in Desktop App was chosen (offered with `desktop=1`) |
 
 The sequencer (`/apps/wordcraft/collab/*`, JSON, with Nextcloud's CSRF token or
 `OCS-APIRequest: true`):

@@ -1,7 +1,7 @@
 // Files app: an "Open in WordLogic" action on documents, the default (click to open) for them.
 
 import { DefaultType, Permission, registerFileAction } from '@nextcloud/files'
-import { generateUrl } from '@nextcloud/router'
+import { generateUrl, getRootUrl } from '@nextcloud/router'
 
 /** Word and OpenDocument documents, and RTF: WordLogic saves them back as they are. */
 const DOCUMENTS = ['docx', 'docm', 'dotx', 'dotm', 'odt', 'rtf']
@@ -58,4 +58,19 @@ registerFileAction({
 		return null
 	},
 	order: -10,
+})
+
+// "Open in WordLogic desktop app": the file in WordLogic on this computer (`wordlogic://open`,
+// as in `editor.js`), signed in to this Nextcloud and co-editing with the browser.
+registerFileAction({
+	id: 'wordcraft-open-desktop',
+	displayName: () => 'Open in WordLogic desktop app',
+	iconSvgInline: () => ICON,
+	enabled: ({ nodes }) => nodes.length === 1 && opens(nodes[0]) && !document.getElementById('isPublic')?.value,
+	async exec({ nodes }) {
+		const server = `${location.origin}${getRootUrl()}`
+		location.href = `wordlogic://open?server=${encodeURIComponent(server)}&path=${encodeURIComponent(nodes[0].path)}`
+		return null
+	},
+	order: -9,
 })
