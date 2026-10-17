@@ -72,15 +72,13 @@ same way.
   the computer with a `wordlogic://open?server=…&path=…` link, as GridLogic's do with
   `gridlogic://`. The desktop app is to sign in to that Nextcloud (Login Flow) if it needs to and
   join the same co-editing session through `/apps/wordcraft/collab/*` with its app password
-  (state snapshots included), as GridLogic's desktop app does. WordLogic's desktop side (the
-  scheme's registration, Nextcloud sign-in and co-editing) isn't built yet; until it is, the link
-  does nothing.
+  (state snapshots included), as GridLogic's desktop app does. The WordLogic installers register
+  the scheme on Windows and Linux; macOS doesn't handle it yet.
 
 Not yet: file locking (`files_lock`), Save As into another folder.
 
-**Waiting on the WordLogic web build:** `editor/` is empty until the build with the `wordcraft:`
-host bridge exists (`editor/README.md`); until then the editor page says the editor isn't
-installed.
+`editor/` holds the WordLogic web build (`scripts/vendor-editor.sh`, `editor/README.md`); without
+it the editor page says the editor isn't installed.
 
 ## Beside GridLogic
 
