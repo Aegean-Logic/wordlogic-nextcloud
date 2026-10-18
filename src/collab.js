@@ -63,7 +63,9 @@ export class Collab {
 	 */
 	async join() {
 		for (let attempt = 0; attempt < 6; attempt++) {
-			const response = await fetch(this.fileUrl, { headers: this.headers(), credentials: 'same-origin' })
+			// Never from the browser's cache: Nextcloud doesn't say how long a file may be kept, and a
+			// stale copy has an old ETag (the join would be retried forever).
+			const response = await fetch(this.fileUrl, { headers: this.headers(), credentials: 'same-origin', cache: 'no-store' })
 			if (!response.ok) {
 				throw new Error(`${response.status} ${response.statusText}`)
 			}

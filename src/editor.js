@@ -113,7 +113,7 @@ function headers(extra = {}) {
 }
 
 async function load(frame) {
-	const response = await fetch(davUrl(path), { headers: headers(), credentials: 'same-origin' })
+	const response = await fetch(davUrl(path), { headers: headers(), credentials: 'same-origin', cache: 'no-store' })
 	if (!response.ok) {
 		throw new Error(`${response.status} ${response.statusText}`)
 	}
