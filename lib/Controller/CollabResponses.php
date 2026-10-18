@@ -21,8 +21,8 @@ trait CollabResponses {
 		try {
 			$out = $f();
 			return $out instanceof Response ? $out : new DataResponse($out);
-		} catch (NotMemberException) {
-			return new DataResponse(['rejoin' => true], Http::STATUS_CONFLICT);
+		} catch (NotMemberException $e) {
+			return new DataResponse($e->outdated ? ['rejoin' => true, 'outdated' => true] : ['rejoin' => true], Http::STATUS_CONFLICT);
 		} catch (StateGoneException) {
 			return new DataResponse(['error' => 'The shared document was saved again: join again.', 'retry' => true], Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {

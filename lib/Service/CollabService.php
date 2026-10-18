@@ -58,12 +58,12 @@ class CollabService {
 	 * position the loaded file is at, whether a state snapshot is kept for that position
 	 * (`hasState`: fetch it with `state()`), and the log entries after it.
 	 */
-	public function join(int $fileId, string $etag, string $userId, string $displayName, bool $canEdit = true): array {
+	public function join(int $fileId, string $etag, string $userId, string $displayName, bool $canEdit = true, string $build = ''): array {
 		$etag = self::bareEtag($etag);
 		for ($attempt = 0; ; $attempt++) {
 			$this->db->beginTransaction();
 			try {
-				$result = $this->joinLocked($fileId, $etag, $userId, $displayName, $canEdit);
+				$result = $this->joinLocked($fileId, $etag, $userId, $displayName, $canEdit, $build);
 				if (isset($result['retry'])) {
 					$this->db->rollBack();
 					return $result;
@@ -89,7 +89,7 @@ class CollabService {
 		return $result;
 	}
 
-	private function joinLocked(int $fileId, string $etag, string $userId, string $displayName, bool $canEdit): array {
+	private function joinLocked(int $fileId, string $etag, string $userId, string $displayName, bool $canEdit, string $build): array {
 		$now = $this->time->getTime();
 		// Taking a client id locks the session row for the rest of the transaction.
 		$qb = $this->db->getQueryBuilder();
@@ -149,7 +149,19 @@ class CollabService {
 			'display_name' => $qb->createNamedParameter(mb_substr($displayName, 0, 255)),
 			'last_seen' => $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT),
 			'can_edit' => $qb->createNamedParameter($canEdit ? 1 : 0, IQueryBuilder::PARAM_INT),
+			'build' => $qb->createNamedParameter(self::build($build)),
 		])->executeStatement();
+		// The newest build in the session sets what everyone runs: members on an older one are
+		// sent to rejoin (their page reloads with the new build) before they misread an edit.
+		$sessionBuild = (string)($session['build'] ?? '');
+		if (version_compare(self::build($build), $sessionBuild, '>')) {
+			$sessionBuild = self::build($build);
+			$qb = $this->db->getQueryBuilder();
+			$qb->update('wordcraft_sessions')
+				->set('build', $qb->createNamedParameter($sessionBuild))
+				->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+				->executeStatement();
+		}
 
 		$from = (int)$session['checkpoint_seq'];
 		return [
@@ -159,6 +171,8 @@ class CollabService {
 			'entries' => $this->entries($id, $from, PHP_INT_MAX),
 			'members' => $this->activeMembers($id, $now),
 			'restarted' => $restarted,
+			// The newest build in the session: an older one joining is sent back at its first call.
+			'build' => $sessionBuild,
 		];
 	}
 
@@ -350,9 +364,14 @@ class CollabService {
 		return is_object($value) || is_array($value);
 	}
 
+	/**
+	 * The client is in the session, on the session's build: a member on an older build than the
+	 * newest that joined must rejoin (an older WordLogic would misread newer edits, and could
+	 * save its misread copy over everyone's work).
+	 */
 	private function requireMember(int $sessionId, int $client, string $userId): void {
 		$qb = $this->db->getQueryBuilder();
-		$row = $qb->select('id')->from('wordcraft_members')
+		$row = $qb->select('id', 'build')->from('wordcraft_members')
 			->where($qb->expr()->eq('session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->eq('client', $qb->createNamedParameter($client, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
@@ -360,6 +379,15 @@ class CollabService {
 		if ($row === false) {
 			throw new NotMemberException();
 		}
+		$session = (string)($this->sessionById($sessionId)['build'] ?? '');
+		if (version_compare((string)($row['build'] ?? ''), $session, '<')) {
+			throw new NotMemberException(true);
+		}
+	}
+
+	/** A build as a copy names it (its co-editing protocol), at most 32 characters. */
+	private static function build(string $build): string {
+		return mb_substr(trim($build), 0, 32);
 	}
 
 	/** @return list<array{seq: int, client: int, client_seq: int, base: int, op: string}> */

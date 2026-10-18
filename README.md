@@ -40,6 +40,14 @@ same way.
   name, and a strip above the editor lists who's editing (positions travel with each poll and are
   kept in `wordcraft_members.selection`; the server doesn't read them).
 - **Undo:** Undo and Redo take back a person's own edits only, never someone else's later change.
+- **One protocol per session:** each copy joins saying what its edits mean (WordLogic's co-editing
+  protocol: the editor's `wordcraft:ready` gives it, the desktop app sends its own; never the app
+  version, which the desktop app doesn't share). The server keeps the newest per session
+  (`wordcraft_sessions.build`, `wordcraft_members.build`) and answers any member on an older one
+  with `{rejoin: true, outdated: true}`, so a tab left open across an upgrade reloads with the new
+  WordLogic before it misreads the others' edits or saves its copy over them. A page reloads for
+  that at most once a minute, then says why (a desktop app newer than this server's editor), and
+  the desktop app on an older protocol stops sharing with a message.
 - **View-only access:** someone who can read but not write the file follows the others live; an
   edit they try is taken back with a message (and the server refuses it too). Only members who
   can edit save the shared document, and the server records a checkpoint only from them, and only
@@ -96,7 +104,7 @@ object whose `type` starts with `wordcraft:`. The shapes are GridLogic's
 
 | Message | Direction | Fields |
 |---|---|---|
-| `wordcraft:ready` | to the page | `version`; `ack` (true with `&ack=1`); `collab` (true: this build can co-edit) |
+| `wordcraft:ready` | to the page | `version`; `ack` (true with `&ack=1`); `collab` (the co-editing protocol, a number, that the page joins with; `true` from builds before it: protocol 1) |
 | `wordcraft:open` | from the page | `name`, `bytes` (`ArrayBuffer`) |
 | `wordcraft:save` | to the page | `name`, `bytes`, `id`: Save, Save As and Export (PDF). While co-editing, the opened file's own name writes a checkpoint instead. |
 | `wordcraft:saved` / `wordcraft:saveFailed` | from the page | `id`; `name` / `error` |
@@ -120,10 +128,10 @@ The sequencer (`/apps/wordcraft/collab/*`, JSON, with Nextcloud's CSRF token or
 
 | Route | Does |
 |---|---|
-| `POST join {fileId, etag}` | `{sessionId, client, seq, hasState, entries, members, canEdit}`, or `{retry: true}` (load the file again) |
+| `POST join {fileId, etag, build}` | `{sessionId, client, seq, hasState, entries, members, canEdit, build}` (`build`: the newest co-editing protocol in the session; a copy on an older one leaves), or `{retry: true}` (load the file again) |
 | `GET state ?sessionId&client&seq` | The state snapshot for `seq` (when `hasState`); 404 `{retry: true}` if a newer save replaced it |
 | `POST push {sessionId, client, clientSeq, base, op}` | `{seq}` |
-| `GET sync ?sessionId&client&since&sel` | `{entries, members, checkpointSeq, checkpointEtag}` |
+| `GET sync ?sessionId&client&since&sel` | `{entries, members, checkpointSeq, checkpointEtag}`, or 409 `{rejoin: true}`; `{rejoin: true, outdated: true}` to a member on an older protocol than the session's (any call) |
 | `POST checkpoint {sessionId, client, seq, etag, state}` | Records the save and keeps its snapshot |
 | `POST leave {sessionId, client}` | |
 

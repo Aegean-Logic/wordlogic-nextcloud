@@ -34,12 +34,12 @@ class CollabController extends Controller {
 
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'POST', url: '/collab/join')]
-	public function join(int $fileId, string $etag): Response {
-		return $this->guard(function () use ($fileId, $etag) {
+	public function join(int $fileId, string $etag, string $build = ''): Response {
+		return $this->guard(function () use ($fileId, $etag, $build) {
 			$user = $this->userSession->getUser();
 			$node = $this->file($fileId);
 			$canEdit = $node->isUpdateable();
-			$result = $this->collab->join($fileId, $etag, $user->getUID(), $user->getDisplayName(), $canEdit);
+			$result = $this->collab->join($fileId, $etag, $user->getUID(), $user->getDisplayName(), $canEdit, $build);
 			$result['canEdit'] = $canEdit;
 			return $result;
 		});

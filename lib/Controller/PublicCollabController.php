@@ -44,13 +44,13 @@ class PublicCollabController extends PublicShareController {
 
 	#[PublicPage]
 	#[FrontpageRoute(verb: 'POST', url: '/s/{token}/collab/join')]
-	public function join(string $etag, string $displayName = '', string $path = ''): Response {
-		return $this->guard(function () use ($etag, $displayName, $path) {
+	public function join(string $etag, string $displayName = '', string $path = '', string $build = ''): Response {
+		return $this->guard(function () use ($etag, $displayName, $path, $build) {
 			// `$path`: the document within a shared folder (none for a link to a file).
 			$file = $this->sharedFile($path);
 			$canEdit = $this->linkCanEdit($file);
 			$key = $this->random->generate(32, ISecureRandom::CHAR_ALPHANUMERIC);
-			$result = $this->collab->join($file->getId(), $etag, self::visitor($key), self::name($displayName), $canEdit);
+			$result = $this->collab->join($file->getId(), $etag, self::visitor($key), self::name($displayName), $canEdit, $build);
 			if (!isset($result['retry'])) {
 				$result['key'] = $key;
 				$result['canEdit'] = $canEdit;

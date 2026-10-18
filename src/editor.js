@@ -218,7 +218,7 @@ function start() {
 			}
 			try {
 				if (message.collab && fileId > 0 && coEdits) {
-					await share(frame)
+					await share(frame, message.collab)
 				} else {
 					await load(frame)
 				}
@@ -340,8 +340,13 @@ function initialsOf(name) {
 	return ((parts[0]?.[0] ?? '?') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
 }
 
-/** Opens the file in a co-editing session: everyone with it open edits the same document. */
-async function share(frame) {
+/**
+ * Opens the file in a co-editing session: everyone with it open edits the same document.
+ * `protocol`: what the editor's edits mean (`wordcraft:ready`'s `collab`; `true` from the first
+ * builds that co-edited). The server keeps a session to the newest, so every copy reads the edits
+ * alike, the desktop app's included.
+ */
+async function share(frame, protocol) {
 	collab = new Collab({
 		frame,
 		fileId,
@@ -350,6 +355,7 @@ async function share(frame) {
 		notify,
 		endpoint: viaLink ? generateUrl(`/apps/wordcraft/s/${encodeURIComponent(token)}/collab`) : generateUrl('/apps/wordcraft/collab'),
 		joinParams: viaLink ? { displayName: personName, path: sharePath } : {},
+		build: String(typeof protocol === 'number' ? protocol : 1),
 		person: personName,
 		onMembers(members) {
 			others = Math.max(0, members.length - 1)
