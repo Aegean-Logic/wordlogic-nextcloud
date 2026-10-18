@@ -127,6 +127,20 @@ class CollabService {
 			}
 			// Nobody's here and the file changed (outside the session, or a session long gone):
 			// the file as it is now is where the log starts.
+			$restarted = true;
+		} elseif (version_compare(self::build($build), (string)($session['build'] ?? ''), '<')
+			&& (int)$session['checkpoint_seq'] === (int)$session['last_seq']
+			&& $this->activeMembers($id, $now) === []) {
+			// An older build than the session's, with nobody here and every edit in the log saved to
+			// the file (a newer desktop app came and went): start again from the file too, on the
+			// joiner's build, rather than shut it out until the session is cleaned up. All a newer build
+			// left goes with the restart: the log, the members (one coming back must join again, which
+			// raises the build again) and the kept state snapshot, which a newer engine wrote. Not while
+			// edits wait to be saved: only a build as new as theirs can carry them on, so the session
+			// stays on theirs until one saves them (or it's cleaned up).
+			$restarted = true;
+		}
+		if ($restarted) {
 			$qb = $this->db->getQueryBuilder();
 			$qb->delete('wordcraft_ops')->where($qb->expr()->eq('session_id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))->executeStatement();
 			$qb = $this->db->getQueryBuilder();
@@ -135,10 +149,11 @@ class CollabService {
 			$qb->update('wordcraft_sessions')
 				->set('checkpoint_seq', 'last_seq')
 				->set('checkpoint_etag', $qb->createNamedParameter($etag))
+				// The joiner's build: nobody's left on another (a newer one joining raises it again).
+				->set('build', $qb->createNamedParameter(self::build($build)))
 				->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
 				->executeStatement();
 			$session = $this->sessionByFile($fileId) ?? $session;
-			$restarted = true;
 		}
 
 		$qb = $this->db->getQueryBuilder();

@@ -47,7 +47,11 @@ same way.
   with `{rejoin: true, outdated: true}`, so a tab left open across an upgrade reloads with the new
   WordLogic before it misreads the others' edits or saves its copy over them. A page reloads for
   that at most once a minute, then says why (a desktop app newer than this server's editor), and
-  the desktop app on an older protocol stops sharing with a message.
+  the desktop app on an older protocol stops sharing with a message. The session starts again from
+  the file on the joiner's protocol when nobody is in it and either the file changed or every edit
+  is saved to it (the log, members and kept state snapshot go: a newer engine wrote them), so a newer
+  desktop app that came and went doesn't shut older copies out; with edits not yet saved it waits
+  for a copy as new as theirs.
 - **View-only access:** someone who can read but not write the file follows the others live; an
   edit they try is taken back with a message (and the server refuses it too). Only members who
   can edit save the shared document, and the server records a checkpoint only from them, and only

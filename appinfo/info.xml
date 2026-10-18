@@ -4,7 +4,7 @@
 	<name>WordLogic</name>
 	<summary>Open and edit documents in WordLogic</summary>
 	<description><![CDATA[Open .docx, .odt, .rtf and other documents from Files in WordLogic, an open-source word processor that runs in the browser. Saving writes the document back to Nextcloud.]]></description>
-	<version>0.8.0</version>
+	<version>0.8.1</version>
 	<licence>agpl</licence>
 	<author homepage="https://www.aegeanlogic.co.uk">Aegean Logic</author>
 	<namespace>WordCraft</namespace>
