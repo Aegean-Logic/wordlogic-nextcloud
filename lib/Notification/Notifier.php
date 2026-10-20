@@ -12,7 +12,11 @@ use OCP\Notification\INotification;
 use OCP\Notification\INotifier;
 use OCP\Notification\UnknownNotificationException;
 
-/** Shows WordLogic's notifications: "Ann mentioned you in Report.docx", with the comment. */
+/**
+ * Shows WordLogic's notifications: "Ann mentioned you in Report.docx", with the comment, "Ann
+ * mentioned you in the chat about Report.docx", with the message, or "Ann started a call about
+ * Report.docx".
+ */
 class Notifier implements INotifier {
 	public function __construct(
 		private IFactory $l10nFactory,
@@ -39,8 +43,13 @@ class Notifier implements INotifier {
 		$actorName = (string)($p['actorName'] ?? $actor);
 		$name = (string)($p['name'] ?? '');
 		$path = (string)($p['path'] ?? '');
-		$link = $this->mentions->link($path, (string)($p['anchor'] ?? ''));
-		$subject = $l->t('{user} mentioned you in {file}');
+		$where = (string)($p['where'] ?? MentionService::IN_COMMENT);
+		$link = $this->mentions->link($path, (string)($p['anchor'] ?? ''), $where);
+		$subject = match ($where) {
+			MentionService::IN_CHAT => $l->t('{user} mentioned you in the chat about {file}'),
+			MentionService::CALL_STARTED => $l->t('{user} started a call about {file}'),
+			default => $l->t('{user} mentioned you in {file}'),
+		};
 		$notification->setRichSubject($subject, [
 			'user' => ['type' => 'user', 'id' => $actor, 'name' => $actorName],
 			'file' => ['type' => 'file', 'id' => (string)($p['fileId'] ?? ''), 'name' => $name, 'path' => ltrim($path, '/'), 'link' => $link],

@@ -40,6 +40,7 @@ class EditorController extends Controller {
 	public function edit(string $path = ''): TemplateResponse {
 		Util::addScript(Application::APP_ID, 'wordcraft-editor');
 		Util::addStyle(Application::APP_ID, 'editor');
+		Util::addStyle(Application::APP_ID, 'talk');
 		$response = new TemplateResponse(Application::APP_ID, 'editor', [
 			'path' => $path,
 			// For co-editing: sessions are per file, and a file keeps its id when renamed or moved.

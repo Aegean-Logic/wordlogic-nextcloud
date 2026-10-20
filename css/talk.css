@@ -1,0 +1,338 @@
+/*
+ * Chat and calls about the file (src/talk.js), in Nextcloud's colours. The same file serves
+ * GridLogic, WordLogic and SlideLogic; keep the copies alike.
+ */
+
+.aegean-talk-actions {
+	display: inline-flex;
+	gap: 6px;
+	margin-left: auto;
+}
+
+.aegean-talk-button {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 28px;
+	margin: 0;
+	padding: 2px 10px;
+	border: 1px solid var(--color-border-dark, var(--color-border));
+	border-radius: var(--border-radius-element, 8px);
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 13px;
+	font-weight: normal;
+	cursor: pointer;
+}
+
+.aegean-talk-button:hover,
+.aegean-talk-button:focus-visible {
+	background: var(--color-background-hover);
+}
+
+.aegean-talk-button[aria-pressed='true'] {
+	background: var(--color-primary-element-light, var(--color-background-dark));
+	color: var(--color-primary-element-light-text, var(--color-main-text));
+}
+
+.aegean-talk-button .icon {
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	background-size: 16px;
+	opacity: 0.8;
+}
+
+/* A call going on: join it. */
+.aegean-talk-button.call.live {
+	border-color: var(--color-success, #2d7b41);
+	background: var(--color-success, #2d7b41);
+	color: #fff;
+}
+
+.aegean-talk-button.call.live .icon {
+	filter: invert(1);
+	opacity: 1;
+}
+
+.aegean-talk-button .badge {
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	border-radius: 9px;
+	background: var(--color-primary-element, #0082c9);
+	color: var(--color-primary-element-text, #fff);
+	font-size: 11px;
+	font-weight: bold;
+	line-height: 18px;
+	text-align: center;
+}
+
+.aegean-talk-button .badge.mention {
+	background: var(--color-error, #d91812);
+	color: #fff;
+}
+
+.aegean-talk-actions [hidden],
+.aegean-talk-panel[hidden],
+.aegean-talk-panel [hidden] {
+	display: none !important;
+}
+
+/* The panel, beside the editor. */
+.aegean-talk-panel {
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 340px;
+	width: 340px;
+	min-height: 0;
+	border-left: 1px solid var(--color-border);
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 14px;
+}
+
+/* Narrow windows: over the editor. */
+@media (max-width: 720px) {
+	.aegean-talk-panel {
+		position: absolute;
+		inset: 0;
+		z-index: 20;
+		width: auto;
+		border-left: 0;
+	}
+}
+
+.aegean-talk-panel header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px 6px 14px;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.aegean-talk-panel h2 {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-size: 15px;
+	font-weight: bold;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.aegean-talk-panel .open-in-talk {
+	color: var(--color-primary-element, #0082c9);
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+.aegean-talk-panel .close {
+	width: 32px;
+	min-height: 32px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: var(--border-radius-element, 8px);
+	background: transparent;
+	color: var(--color-main-text);
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.aegean-talk-panel .close:hover {
+	background: var(--color-background-hover);
+}
+
+.aegean-talk-state {
+	margin: 0;
+	padding: 24px 20px;
+	color: var(--color-text-maxcontrast);
+	text-align: center;
+}
+
+.aegean-talk-messages {
+	flex: 1;
+	min-height: 0;
+	padding: 8px 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.aegean-talk-more,
+.aegean-talk-day,
+.aegean-talk-system,
+.aegean-talk-unread {
+	margin: 8px 14px;
+	color: var(--color-text-maxcontrast);
+	font-size: 12px;
+	text-align: center;
+}
+
+.aegean-talk-day {
+	font-weight: bold;
+}
+
+.aegean-talk-unread {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--color-error-text, var(--color-error, #d91812));
+}
+
+.aegean-talk-unread::before,
+.aegean-talk-unread::after {
+	content: '';
+	flex: 1;
+	border-top: 1px solid currentColor;
+}
+
+.aegean-talk-message {
+	display: flex;
+	gap: 10px;
+	padding: 6px 14px 2px;
+}
+
+.aegean-talk-message.grouped {
+	padding-top: 0;
+}
+
+.aegean-talk-message:hover {
+	background: var(--color-background-hover);
+}
+
+.aegean-talk-message .avatar,
+.aegean-talk-message .avatar-space {
+	flex: 0 0 32px;
+	width: 32px;
+	height: 32px;
+}
+
+.aegean-talk-message .avatar {
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.aegean-talk-message .avatar.initials {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--color-background-darker, #ddd);
+	color: var(--color-main-text);
+	font-size: 12px;
+	font-weight: bold;
+}
+
+.aegean-talk-message.grouped .avatar-space {
+	height: 0;
+}
+
+.aegean-talk-message .body {
+	flex: 1;
+	min-width: 0;
+}
+
+.aegean-talk-message .head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.aegean-talk-message .head strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.aegean-talk-message time {
+	color: var(--color-text-maxcontrast);
+	font-size: 12px;
+}
+
+.aegean-talk-message .text {
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+
+.aegean-talk-message .text.deleted,
+.aegean-talk-message .edited {
+	color: var(--color-text-maxcontrast);
+	font-style: italic;
+}
+
+.aegean-talk-message .text a {
+	color: var(--color-primary-element, #0082c9);
+	text-decoration: underline;
+}
+
+.aegean-talk-panel .mention {
+	padding: 0 4px;
+	border-radius: 10px;
+	background: var(--color-background-dark, #ededed);
+	font-weight: bold;
+}
+
+.aegean-talk-panel .mention.me {
+	background: var(--color-primary-element, #0082c9);
+	color: var(--color-primary-element-text, #fff);
+}
+
+/* Writing a message. */
+.aegean-talk-compose {
+	position: relative;
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	padding: 8px 10px 10px;
+	border-top: 1px solid var(--color-border);
+}
+
+.aegean-talk-compose textarea {
+	flex: 1;
+	min-height: 36px;
+	max-height: 160px;
+	margin: 0;
+	padding: 7px 10px;
+	overflow-y: hidden;
+	resize: none;
+	font: inherit;
+}
+
+.aegean-talk-compose .send {
+	min-height: 36px;
+	margin: 0;
+}
+
+.aegean-talk-suggestions {
+	position: absolute;
+	right: 10px;
+	bottom: calc(100% - 4px);
+	left: 10px;
+	z-index: 1;
+	max-height: 240px;
+	margin: 0;
+	padding: 4px;
+	overflow-y: auto;
+	border-radius: var(--border-radius-large, 10px);
+	background: var(--color-main-background);
+	box-shadow: 0 2px 10px var(--color-box-shadow, rgba(0, 0, 0, 0.25));
+	list-style: none;
+}
+
+.aegean-talk-suggestions li {
+	padding: 6px 10px;
+	border-radius: var(--border-radius-element, 8px);
+	cursor: pointer;
+}
+
+.aegean-talk-suggestions li.chosen,
+.aegean-talk-suggestions li:hover {
+	background: var(--color-background-hover);
+}
+
+.aegean-talk-suggestions small {
+	color: var(--color-text-maxcontrast);
+}

@@ -11,6 +11,7 @@ import { generateRemoteUrl, generateUrl, getRootUrl } from '@nextcloud/router'
 
 import { Collab, colorFor } from './collab.js'
 import { guestSharing, sharing } from './share.js'
+import { mountTalk } from './talk.js'
 
 const root = document.getElementById('wordcraft-app')
 const status = document.getElementById('wordcraft-status')
@@ -293,7 +294,25 @@ function start() {
 	})
 
 	frame.src = editorUrl.toString()
-	root.appendChild(frame)
+	// The editor, with the chat beside it when it's open.
+	const stage = document.createElement('div')
+	stage.className = 'aegean-stage'
+	stage.append(frame)
+	root.appendChild(stage)
+
+	mountTalk({
+		app: 'wordcraft',
+		bar: peopleBar(),
+		stage,
+		fileId,
+		shareToken: token,
+		sharePath,
+		guestName: user ? '' : (getGuestNickname() ?? ''),
+		// A chat mention's link (MentionService::link): the chat opens with the file.
+		openChat: new URLSearchParams(location.search).get('chat') === '1',
+		fileName: () => shownName,
+		headers,
+	}).catch((e) => console.warn('WordLogic: no chat', e))
 }
 
 /**
@@ -306,15 +325,28 @@ export function openInDesktop(filePath) {
 	location.href = `wordlogic://open?server=${encodeURIComponent(server)}&path=${encodeURIComponent(filePath)}`
 }
 
-/** Who's editing, above the editor: each person in the colour they're drawn in in the document. */
-function showPeople(members) {
+/**
+ * The bar above the editor: who's editing, and the Chat and Call buttons (talk.js). Hidden until
+ * either has something to show.
+ */
+function peopleBar() {
 	let strip = document.getElementById('wordcraft-people')
 	if (!strip) {
 		strip = document.createElement('div')
 		strip.id = 'wordcraft-people'
-		strip.setAttribute('aria-label', "Who's editing")
+		strip.hidden = true
+		strip.append(Object.assign(document.createElement('span'), { className: 'people' }))
+		strip.lastChild.setAttribute('aria-label', "Who's editing")
 		root.prepend(strip)
 	}
+	return strip
+}
+
+/** Who's editing, above the editor: each person in the colour they're drawn in in the document. */
+function showPeople(members) {
+	const bar = peopleBar()
+	bar.hidden = false
+	const strip = bar.querySelector('.people')
 	const me = collab?.client
 	const sorted = [...members].sort((a, b) => (a.client === me ? -1 : b.client === me ? 1 : a.client - b.client))
 	const key = JSON.stringify(sorted.map((m) => [m.client, m.displayName]))
