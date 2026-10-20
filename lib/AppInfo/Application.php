@@ -8,6 +8,7 @@ use OCA\Files\Event\LoadAdditionalScriptsEvent;
 use OCA\Files_Sharing\Event\BeforeTemplateRenderedEvent;
 use OCA\WordCraft\Listener\LoadFilesScripts;
 use OCA\WordCraft\Listener\LoadPublicFolderScripts;
+use OCA\WordCraft\Notification\Notifier;
 use OCA\WordCraft\Share\EditorPageProvider;
 use OCP\App\IAppManager;
 use OCP\AppFramework\App;
@@ -29,6 +30,8 @@ class Application extends App implements IBootstrap {
 		$context->registerPublicShareTemplateProvider(EditorPageProvider::class);
 		// A link to a folder: its documents open in WordLogic too.
 		$context->registerEventListener(BeforeTemplateRenderedEvent::class, LoadPublicFolderScripts::class);
+		// @mentions in comments.
+		$context->registerNotifierService(Notifier::class);
 	}
 
 	public function boot(IBootContext $context): void {

@@ -87,6 +87,15 @@ same way.
   (state snapshots included), as GridLogic's desktop app does. The WordLogic installers register
   the scheme on Windows and Linux; macOS doesn't handle it yet.
 
+- **@mentions:** typing `@` in a comment lists Nextcloud users (the sharees API, so the server's
+  sharing rules apply). Posting the comment calls `POST /apps/wordcraft/mention {fileId, people,
+  text, anchor}` (60 an hour per user, at most 20 people a comment): each person who can open the
+  file gets a notification and an email with the comment and a link that opens the document at it
+  (`/apps/wordcraft/edit?path=…&comment=<anchor>`). People who can't open it come back as `noAccess`,
+  and WordLogic asks whether to share it with them first ("Share and notify"). Turn the emails off
+  with `occ config:app:set wordcraft mention_email --value=no`. Design: Aegean Office
+  `docs/mentions.md`.
+
 Not yet: file locking (`files_lock`), Save As into another folder.
 
 `editor/` holds the WordLogic web build (`scripts/vendor-editor.sh`, `editor/README.md`); without

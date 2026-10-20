@@ -193,6 +193,11 @@ function start() {
 		// The document can carry on in WordLogic on this computer (Open in Desktop App).
 		params.desktop = '1'
 	}
+	// A mention's link names its comment: WordLogic opens it once the document is in.
+	const comment = new URLSearchParams(location.search).get('comment')
+	if (comment) {
+		params.comment = comment.slice(0, 300)
+	}
 	for (const [key, value] of Object.entries(params)) {
 		editorUrl.searchParams.set(key, value)
 	}
@@ -255,7 +260,7 @@ function start() {
 			// The Share dialog asks; Nextcloud answers. Guests on a link can only pass the link on.
 			shareHandler ??= viaLink
 				? guestSharing({ name: shownName, link: `${location.origin}${location.pathname}` })
-				: sharing({ path, name: shownName, davUrl: davUrl(path) })
+				: sharing({ path, name: shownName, davUrl: davUrl(path), fileId })
 			const reply = await shareHandler(message)
 			frame.contentWindow.postMessage(reply, location.origin)
 			break
